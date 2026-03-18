@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Drum Master Jr.</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <style>
+            .kid-btn-green {
+                @apply bg-emerald-500 hover:bg-emerald-400 text-white rounded-3xl shadow-[0_8px_0_0_#065f46] active:shadow-none active:translate-y-2 transition-all flex flex-col items-center justify-center p-6 disabled:opacity-50 disabled:bg-slate-700 disabled:shadow-none;
+            }
+            .kid-btn-red {
+                @apply bg-rose-500 hover:bg-rose-400 text-white rounded-3xl shadow-[0_8px_0_0_#9f1239] active:shadow-none active:translate-y-2 transition-all flex flex-col items-center justify-center p-6 disabled:opacity-50 disabled:bg-slate-700 disabled:shadow-none;
+            }
+            .speed-card {
+                @apply bg-slate-800 rounded-2xl p-4 flex flex-col items-center justify-center border-4 border-transparent hover:border-indigo-500 cursor-pointer transition-all;
+            }
+            .speed-card.active {
+                @apply border-indigo-500 bg-slate-700 shadow-lg;
+            }
+        </style>
+    </head>
+    <body class="bg-slate-950 text-white font-sans p-4 select-none">
+        <div class="max-w-4xl mx-auto flex flex-col min-h-screen space-y-4">
+            <div
+                class="flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-900/50 p-4 rounded-2xl border border-slate-800"
+            >
+                <h1 class="text-xl font-black text-indigo-400 italic uppercase">
+                    Drum Master
+                </h1>
+                <div class="flex gap-2 w-full md:w-auto">
+                    <input
+                        type="text"
+                        id="youtubeUrl"
+                        placeholder="Paste YouTube Link"
+                        class="bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-sm flex-grow outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <button
+                        id="loadBtn"
+                        onclick="loadNewVideo()"
+                        disabled
+                        class="bg-indigo-600 px-6 py-2 rounded-lg font-bold text-sm disabled:bg-slate-700 opacity-50"
+                    >
+                        WAIT...
+                    </button>
+                </div>
+            </div>
+
+            <div
+                class="aspect-video bg-black rounded-[2rem] border-8 border-slate-800 shadow-2xl overflow-hidden relative"
+            >
+                <div id="player" class="w-full h-full"></div>
+                <div
+                    id="shield"
+                    onclick="initSystem()"
+                    class="absolute inset-0 bg-slate-900 flex flex-col items-center justify-center cursor-pointer z-50"
+                >
+                    <span class="text-7xl mb-4">🥁</span>
+                    <span
+                        class="text-2xl font-black uppercase bg-indigo-600 px-6 py-2 rounded-full shadow-xl"
+                        >Tap to Play</span
+                    >
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-6">
+                <button
+                    id="startBtn"
+                    onclick="setPoint('start')"
+                    disabled
+                    class="kid-btn-green"
+                >
+                    <span class="text-5xl mb-2">🎬</span>
+                    <span class="text-2xl font-black uppercase">Start</span>
+                    <span
+                        id="startTimeLabel"
+                        class="text-sm font-mono mt-1 bg-black/30 px-3 py-1 rounded-full text-emerald-200"
+                        >0:00</span
+                    >
+                </button>
+                <button
+                    id="endBtn"
+                    onclick="setPoint('end')"
+                    disabled
+                    class="kid-btn-red"
+                >
+                    <span class="text-5xl mb-2">🛑</span>
+                    <span class="text-2xl font-black uppercase">Stop</span>
+                    <span
+                        id="endTimeLabel"
+                        class="text-sm font-mono mt-1 bg-black/30 px-3 py-1 rounded-full text-rose-200"
+                        >END</span
+                    >
+                </button>
+            </div>
+
+            <div
+                class="bg-slate-900/40 p-6 rounded-[2.5rem] border-2 border-slate-800"
+            >
+                <div class="grid grid-cols-4 gap-4">
+                    <div class="speed-card" onclick="setSpeed(0.5, this)">
+                        <span>🐢</span><b>Slow</b>
+                    </div>
+                    <div class="speed-card" onclick="setSpeed(0.75, this)">
+                        <span>🚶</span><b>Easy</b>
+                    </div>
+                    <div class="speed-card active" onclick="setSpeed(1, this)">
+                        <span>😎</span><b>Normal</b>
+                    </div>
+                    <div class="speed-card" onclick="setSpeed(1.25, this)">
+                        <span>🚀</span><b>Fast</b>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            let player = null;
+            let loopStart = 0;
+            let loopEnd = 0;
+            let currentId = "";
+
+            // Load data from LocalStorage immediately
+            const saved = JSON.parse(localStorage.getItem("drumData")) || {
+                id: "FmYvQ89y0n4",
+                s: 0,
+                e: 0,
+            };
+            currentId = saved.id;
+            loopStart = saved.s;
+            loopEnd = saved.e;
+
+            function initSystem() {
+                document.getElementById("shield").classList.add("hidden");
+                if (!window.YT) {
+                    const tag = document.createElement("script");
+                    tag.src = "https://www.youtube.com/iframe_api";
+                    document.head.appendChild(tag);
+                } else {
+                    onYouTubeIframeAPIReady();
+                }
+            }
+
+            function onYouTubeIframeAPIReady() {
+                player = new YT.Player("player", {
+                    height: "100%",
+                    width: "100%",
+                    videoId: currentId,
+                    host: "https://www.youtube-nocookie.com",
+                    playerVars: {
+                        autoplay: 1,
+                        modestbranding: 1,
+                        rel: 0,
+                        origin: window.location.origin,
+                    },
+                    events: {
+                        onReady: (event) => {
+                            console.log("Player Ready");
+                            enableButtons();
+                            updateLabels();
+                            startLoopTimer();
+                        },
+                        onStateChange: (event) => {
+                            if (event.data === YT.PlayerState.PLAYING)
+                                enableButtons();
+                        },
+                    },
+                });
+            }
+
+            function enableButtons() {
+                document.getElementById("loadBtn").disabled = false;
+                document
+                    .getElementById("loadBtn")
+                    .classList.remove("opacity-50");
+                document.getElementById("loadBtn").innerText = "LOAD";
+                document.getElementById("startBtn").disabled = false;
+                document.getElementById("endBtn").disabled = false;
+            }
+
+            function startLoopTimer() {
+                setInterval(() => {
+                    if (player && player.getCurrentTime && loopEnd > 0) {
+                        if (player.getCurrentTime() >= loopEnd) {
+                            player.seekTo(loopStart);
+                        }
+                    }
+                }, 100);
+            }
+
+            function loadNewVideo() {
+                const url = document.getElementById("youtubeUrl").value;
+                const match = url.match(
+                    /(?:v=|youtu\.be\/|embed\/)([\w-]{11})/,
+                );
+                if (match && player && player.loadVideoById) {
+                    currentId = match[1];
+                    player.loadVideoById(currentId);
+                    loopStart = 0;
+                    loopEnd = 0;
+                    updateLabels();
+                    save();
+                } else {
+                    alert("Please paste a valid YouTube link!");
+                }
+            }
+
+            function setPoint(type) {
+                if (!player || !player.getCurrentTime) return;
+                const t = player.getCurrentTime();
+                if (type === "start") loopStart = t;
+                else loopEnd = t;
+                updateLabels();
+                save();
+            }
+
+            function setSpeed(r, el) {
+                if (player && player.setPlaybackRate) player.setPlaybackRate(r);
+                document
+                    .querySelectorAll(".speed-card")
+                    .forEach((c) => c.classList.remove("active"));
+                el.classList.add("active");
+            }
+
+            function updateLabels() {
+                const f = (s) =>
+                    Math.floor(s / 60) +
+                    ":" +
+                    Math.floor(s % 60)
+                        .toString()
+                        .padStart(2, "0");
+                document.getElementById("startTimeLabel").innerText =
+                    f(loopStart);
+                document.getElementById("endTimeLabel").innerText =
+                    loopEnd > 0 ? f(loopEnd) : "END";
+            }
+
+            function save() {
+                localStorage.setItem(
+                    "drumData",
+                    JSON.stringify({ id: currentId, s: loopStart, e: loopEnd }),
+                );
+            }
+        </script>
+    </body>
+</html>
